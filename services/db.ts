@@ -1,7 +1,7 @@
 import { Product, User, Order, Category, PaymentMethod, CartItem, Review } from '../types';
 import { MOCK_PRODUCTS, MOCK_USERS, DEFAULT_CATEGORIES, DEFAULT_PAYMENT_METHODS, generateFakeCode } from '../constants';
 
-const API_URL = 'http://127.0.0.1:5000/api';
+const API_URL = 'https://backendpay-1.onrender.com/api';
 const STORAGE_KEYS = {
   PRODUCTS: 'matajir_products',
   USERS: 'matajir_users',

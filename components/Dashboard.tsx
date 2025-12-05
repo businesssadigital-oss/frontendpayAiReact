@@ -156,7 +156,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const codesList = rawCodes.split(/\r?\n/).filter(line => line.trim() !== '');
     
     if (codesList.length > 0) {
-      const api = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000';
+      const api = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com/';
       
       // Send codes to API
       fetch(`${api}/api/codes`, {
@@ -180,7 +180,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const loadCodeStats = async () => {
-      const api = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000';
+      const api = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com/';
     const stats: Record<string, any> = {};
 
     // Initialize all products with default stats
@@ -191,7 +191,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     // Load stats for each product from API
     for (const product of products) {
       try {
-        const res = await fetch(`${(import.meta.env.VITE_API_URL as string) || 'http://localhost:5000'}/api/codes/stats/${product.id}`);
+        const res = await fetch(`${(import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com/'}/api/codes/stats/${product.id}`);
         if (!res.ok) {
           console.warn(`API returned ${res.status} for ${product.id}`);
           continue;
@@ -216,7 +216,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const openCodesModal = (product: Product) => {
     // Fetch codes from API (real-time from database)
-    const api = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000';
+    const api = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com/';
     
     // Fetch all codes for this product
     fetch(`${api}/api/codes?productId=${product.id}`)

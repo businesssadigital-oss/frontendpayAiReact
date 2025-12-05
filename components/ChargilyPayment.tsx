@@ -47,7 +47,7 @@ export const ChargilyPayment: React.FC<ChargilyPaymentProps> = ({ amount, onSucc
       const currentUrl = window.location.origin;
       
       // Call backend to create Chargily checkout session
-      const response = await fetch('http://localhost:5000/api/chargily/checkout', {
+      const response = await fetch('https://backendpay-1.onrender.com/api/chargily/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

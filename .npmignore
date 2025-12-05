@@ -1,0 +1,40 @@
+# نفس ما في .gitignore
+node_modules
+dist-ssr
+*.local
+.vscode
+.idea
+.DS_Store
+
+# ملفات التطوير
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ملفات البناء
+.cache
+.eslintcache
+
+# التوثيق
+CONTRIBUTING.md
+DEPLOYMENT.md
+CHANGELOG.md
+.github
+
+# الاختبارات والأدوات
+test-api.js
+run-all.ps1
+
+# ملفات التطوير
+.editorconfig
+.env.example
+.env.local
+
+# GitHub Actions
+.github
+
+# أخرى
+.gitignore
+.gitattributes
+*.md

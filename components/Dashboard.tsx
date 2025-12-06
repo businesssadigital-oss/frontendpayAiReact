@@ -165,23 +165,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (!selectedProductId || !rawCodes.trim()) return;
 
     const codesList = rawCodes.split(/\r?\n/).filter(line => line.trim() !== '');
-    
     if (codesList.length > 0) {
-  const rawApi = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com';
-  const api = rawApi.replace(/\/$/, '').replace(/\/api$/, '');
-      
-      // Send codes to API
-      fetch(`${api}/api/codes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: selectedProductId, codes: codesList })
-      })
-        .then(res => res.json())
-        .then(data => {
-          alert(`تم إضافة ${data.count || codesList.length} كود بنجاح`);
+      db.addCodes(selectedProductId, codesList)
+        .then((res: any) => {
+          const count = (res && res.count) || codesList.length;
+          alert(`تم إضافة ${count} كود بنجاح`);
           setRawCodes('');
           setSelectedProductId('');
-          // Refresh stats
+          // Refresh stats and products
           loadCodeStats();
         })
         .catch(err => {
@@ -192,8 +183,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const loadCodeStats = async () => {
-  const rawApi = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com';
-  const api = rawApi.replace(/\/$/, '').replace(/\/api$/, '');
     const stats: Record<string, any> = {};
 
     // Initialize all products with default stats
@@ -204,12 +193,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     // Load stats for each product from API
     for (const product of products) {
       try {
-  const res = await fetch(`${api}/api/codes/stats/${product.id}`);
-        if (!res.ok) {
-          console.warn(`API returned ${res.status} for ${product.id}`);
-          continue;
-        }
-        const data = await res.json();
+        const data = await db.getCodeStats(product.id);
         stats[product.id] = data;
         console.log(`✅ Loaded stats for ${product.name}:`, data);
       } catch (err) {
@@ -229,13 +213,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const openCodesModal = (product: Product) => {
     // Fetch codes from API (real-time from database)
-  const rawApi = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com';
-  const api = rawApi.replace(/\/$/, '').replace(/\/api$/, '');
-    
-    // Fetch all codes for this product
-    fetch(`${api}/api/codes?productId=${product.id}`)
-      .then(res => res.json())
-      .then(codes => {
+    db.getCodes(product.id)
+      .then((codes: any[]) => {
         const sold = codes.filter((c: any) => c.status === 'sold').map((c: any) => c.code);
         const unsold = codes.filter((c: any) => c.status === 'available').map((c: any) => c.code);
         setCodesModalProduct(product);

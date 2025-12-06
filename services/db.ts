@@ -241,9 +241,12 @@ export const db = {
     return getLocal(STORAGE_KEYS.INVENTORY, {});
   },
 
-  addCodes: async (productId: string, codes: string[]): Promise<void> => {
-    if (useBackend) return api(`/products/${productId}/codes`, { method: 'POST', body: JSON.stringify({ codes }) });
-    
+  addCodes: async (productId: string, codes: string[]): Promise<any> => {
+    // Use central /codes endpoint to insert Code documents; backend will also update Product.stock/availableCodes
+    if (useBackend) {
+      return api('/codes', { method: 'POST', body: JSON.stringify({ productId, codes }) });
+    }
+
     // Update Local Inventory
     const inventory = getLocal<Record<string, string[]>>(STORAGE_KEYS.INVENTORY, {});
     const currentCodes = inventory[productId] || [];
@@ -253,9 +256,25 @@ export const db = {
     // Update Product Stock Count
     const products = getLocal<Product[]>(STORAGE_KEYS.PRODUCTS, []);
     const updatedProducts = products.map(p => 
-      p.id === productId ? { ...p, stock: p.stock + codes.length } : p
+      p.id === productId ? { ...p, stock: p.stock + codes.length, availableCodes: [...(p as any).availableCodes || [], ...codes] } : p
     );
     setLocal(STORAGE_KEYS.PRODUCTS, updatedProducts);
+    return { count: codes.length };
+  },
+
+  // Fetch raw Code documents for a product
+  getCodes: async (productId: string) => {
+    if (useBackend) return api<any[]>(`/codes?productId=${productId}`);
+    const inv = getLocal<Record<string, string[]>>(STORAGE_KEYS.INVENTORY, {});
+    const list = (inv[productId] || []).map(c => ({ code: c, status: 'available' }));
+    return list;
+  },
+
+  getCodeStats: async (productId: string) => {
+    if (useBackend) return api<any>(`/codes/stats/${productId}`);
+    const inv = getLocal<Record<string, string[]>>(STORAGE_KEYS.INVENTORY, {});
+    const available = (inv[productId] || []).length;
+    return { productId, available, sold: 0, total: available };
   },
 
   // --- Reviews ---

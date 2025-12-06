@@ -172,8 +172,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
           alert(`تم إضافة ${count} كود بنجاح`);
           setRawCodes('');
           setSelectedProductId('');
-          // Refresh stats and products
+          // Refresh stats
           loadCodeStats();
+          // Notify parent so it can refresh products (stock) if needed
+          try { onAddCodes && onAddCodes(selectedProductId, codesList); } catch (e) { /* ignore */ }
         })
         .catch(err => {
           console.error('Failed to add codes:', err);

@@ -3,8 +3,8 @@ import { MOCK_PRODUCTS, MOCK_USERS, DEFAULT_CATEGORIES, DEFAULT_PAYMENT_METHODS,
 
 // Prefer environment-controlled backend URL (supports local dev and prod).
 const RAW_API = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com';
-// Normalize base to always end with '/api' (no duplicate '/api/api')
-const API_URL = RAW_API.replace(/\/$/, '').replace(/\/api$/, '') + '/api';
+// Default API_URL (will be overridden if a local backend is detected)
+let API_URL = RAW_API.replace(/\/$/, '').replace(/\/api$/, '') + '/api';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'matajir_products',
@@ -69,11 +69,24 @@ export const db = {
     // Reset state to ensure we don't get stuck in backend mode if re-initialized
     useBackend = false; 
 
-    try {
-      await api('/health');
-      useBackend = true;
-      console.log('✅ Connected to Backend API (MongoDB)');
-    } catch (e) {
+    // Try to detect a local backend first (useful during development).
+    const candidates = [ 'http://127.0.0.1:5000', RAW_API.replace(/\/$/, '') ];
+    for (const cand of candidates) {
+      try {
+        const healthUrl = `${cand.replace(/\/$/, '')}/api/health`;
+        const resp = await fetch(healthUrl, { method: 'GET' });
+        if (resp.ok) {
+          API_URL = cand.replace(/\/$/, '').replace(/\/api$/, '') + '/api';
+          useBackend = true;
+          console.log(`✅ Connected to Backend API at ${API_URL}`);
+          break;
+        }
+      } catch (err) {
+        // ignore and try next
+      }
+    }
+
+    if (!useBackend) {
       console.log('ℹ️ Backend unavailable. Running in Offline Mode (LocalStorage).');
       useBackend = false;
       

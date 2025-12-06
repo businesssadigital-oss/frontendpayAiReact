@@ -229,7 +229,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const openCodesModal = (product: Product) => {
     // Fetch codes from API (real-time from database)
-  const rawApi = (import.meta.env.VITE_API_URL as string) || 'http://127.0.0.1:5000';
+  const rawApi = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com';
   const api = rawApi.replace(/\/$/, '').replace(/\/api$/, '');
     
     // Fetch all codes for this product

@@ -70,7 +70,7 @@ export const db = {
     useBackend = false; 
 
     // Try to detect a local backend first (useful during development).
-    const candidates = [ 'http://127.0.0.1:5000', RAW_API.replace(/\/$/, '') ];
+    const candidates = [ 'https://backendpay-1.onrender.com', RAW_API.replace(/\/$/, '') ];
     for (const cand of candidates) {
       try {
         const healthUrl = `${cand.replace(/\/$/, '')}/api/health`;

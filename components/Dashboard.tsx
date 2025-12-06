@@ -167,7 +167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const codesList = rawCodes.split(/\r?\n/).filter(line => line.trim() !== '');
     
     if (codesList.length > 0) {
-  const rawApi = (import.meta.env.VITE_API_URL as string) || 'http://127.0.0.1:5000';
+  const rawApi = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com';
   const api = rawApi.replace(/\/$/, '').replace(/\/api$/, '');
       
       // Send codes to API
@@ -192,7 +192,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const loadCodeStats = async () => {
-  const rawApi = (import.meta.env.VITE_API_URL as string) || 'http://127.0.0.1:5000';
+  const rawApi = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com';
   const api = rawApi.replace(/\/$/, '').replace(/\/api$/, '');
     const stats: Record<string, any> = {};
 

@@ -587,7 +587,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <div className="flex items-center gap-3 mt-4">
             <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold">حفظ</button>
-            <button type="button" onClick={() => { if (confirm('هل تريد إعادة إعدادات المنصة إلى الافتراضية؟')) { setSettings(DEFAULT_SETTINGS as any); }} } className="bg-gray-100 px-4 py-2 rounded-xl">استعادة الافتراضي</button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!confirm('هل تريد إعادة إعدادات المنصة إلى الافتراضية؟')) return;
+                try {
+                  // Persist defaults via backend (or local fallback inside db.updateSettings)
+                  await db.updateSettings(DEFAULT_SETTINGS as any);
+                  setSettings(DEFAULT_SETTINGS as any);
+                  alert('تم استعادة إعدادات المنصة الافتراضية وحفظها');
+                } catch (err) {
+                  console.error('Failed to restore defaults', err);
+                  alert('فشل في استعادة الإعدادات الافتراضية');
+                }
+              }}
+              className="bg-gray-100 px-4 py-2 rounded-xl"
+            >
+              استعادة الافتراضي
+            </button>
           </div>
         </form>
       </div>

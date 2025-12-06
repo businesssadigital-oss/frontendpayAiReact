@@ -1,7 +1,11 @@
 import { Product, User, Order, Category, PaymentMethod, CartItem, Review } from '../types';
 import { MOCK_PRODUCTS, MOCK_USERS, DEFAULT_CATEGORIES, DEFAULT_PAYMENT_METHODS, generateFakeCode, DEFAULT_SETTINGS } from '../constants';
 
-const API_URL = 'https://backendpay-1.onrender.com/api';
+// Prefer environment-controlled backend URL (supports local dev and prod).
+const RAW_API = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com';
+// Normalize base to always end with '/api' (no duplicate '/api/api')
+const API_URL = RAW_API.replace(/\/$/, '').replace(/\/api$/, '') + '/api';
+
 const STORAGE_KEYS = {
   PRODUCTS: 'matajir_products',
   USERS: 'matajir_users',
@@ -18,7 +22,10 @@ let useBackend = false;
 // Helper for API calls
 const api = async <T>(endpoint: string, options?: RequestInit): Promise<T> => {
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    // Ensure endpoint starts with a single '/'
+    const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${API_URL}${ep}`;
+    const response = await fetch(url, {
       headers: { 'Content-Type': 'application/json' },
       ...options,
     });
@@ -278,7 +285,10 @@ export const db = {
   getSettings: async () => {
     if (useBackend) {
       try {
-        return await api('/settings');
+        const remote = await api('/settings');
+        // Keep local cache in sync
+        setLocal(STORAGE_KEYS.SETTINGS, remote);
+        return remote;
       } catch (err) {
         console.warn('Failed to fetch settings from backend, falling back to local');
       }
@@ -289,13 +299,16 @@ export const db = {
   updateSettings: async (settings: any) => {
     if (useBackend) {
       try {
-        await api('/settings', { method: 'PUT', body: JSON.stringify(settings) });
-        return;
+        const saved = await api('/settings', { method: 'PUT', body: JSON.stringify(settings) });
+        // Persist the authoritative copy locally as cache/fallback
+        setLocal(STORAGE_KEYS.SETTINGS, saved);
+        return saved;
       } catch (err) {
         console.warn('Failed to update settings on backend, saving locally', (err as any).message || String(err));
       }
     }
     setLocal(STORAGE_KEYS.SETTINGS, settings);
+    return settings;
   },
 
   // --- Chargily Pay ---

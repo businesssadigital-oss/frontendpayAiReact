@@ -27,8 +27,9 @@ import {
   WifiOff,
   Terminal
 } from 'lucide-react';
-import { Product, Order, User, Category, PaymentMethod } from '../types';
+import { Product, Order, User, Category, PaymentMethod, Settings } from '../types';
 import { db } from '../services/db';
+import { DEFAULT_SETTINGS } from '../constants';
 
 interface DashboardProps {
   products: Product[];
@@ -46,7 +47,7 @@ interface DashboardProps {
   codeInventoryCounts: Record<string, number>;
 }
 
-type Tab = 'overview' | 'products' | 'orders' | 'inventory' | 'users' | 'categories' | 'payments';
+type Tab = 'overview' | 'products' | 'orders' | 'inventory' | 'users' | 'categories' | 'payments' | 'settings';
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
   products, 
@@ -95,6 +96,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [codesModalSold, setCodesModalSold] = useState<string[]>([]);
   const [codesModalUnsold, setCodesModalUnsold] = useState<string[]>([]);
   const [codeStats, setCodeStats] = useState<Record<string, { available: number; sold: number; total: number }>>({});
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  // Load platform settings
+  React.useEffect(() => {
+    let mounted = true;
+    db.getSettings().then(s => {
+      if (mounted) setSettings(s as Settings);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   const openAddModal = () => {
     setProductForm({ category: categories[0]?.id || 'games', rating: 5, stock: 0 });
@@ -264,6 +275,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           { id: 'users', label: 'العملاء', icon: Users },
           { id: 'payments', label: 'طرق الدفع', icon: CreditCard },
           { id: 'code', label: 'محرر الأكواد', icon: FileText },
+          { id: 'settings', label: 'إعدادات المنصة', icon: Shield },
         ].map((item) => (
           <button
             key={item.id}
@@ -508,6 +520,73 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </table>
           </div>
         </div>
+      </div>
+    </div>
+  );
+
+  const renderSettings = () => (
+    <div className="space-y-6 animate-fade-in-up">
+      <h2 className="text-2xl font-bold text-gray-900">إعدادات المنصة</h2>
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm max-w-3xl">
+        <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (!settings) return;
+            try {
+              await db.updateSettings(settings);
+              alert('تم حفظ إعدادات المنصة بنجاح');
+            } catch (err) {
+              console.error('Failed to save settings', err);
+              alert('فشل في حفظ الإعدادات');
+            }
+        }} className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">اسم الموقع</label>
+            <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.siteName || ''} onChange={e => setSettings(prev => prev ? ({...prev, siteName: e.target.value}) : ({...DEFAULT_SETTINGS, siteName: e.target.value}))} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">وصف الموقع</label>
+            <textarea className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 h-24 outline-none" value={settings?.siteDescription || ''} onChange={e => setSettings(prev => prev ? ({...prev, siteDescription: e.target.value}) : ({...DEFAULT_SETTINGS, siteDescription: e.target.value}))} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">رابط الشعار (Logo URL)</label>
+            <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.logoUrl || ''} onChange={e => setSettings(prev => prev ? ({...prev, logoUrl: e.target.value}) : ({...DEFAULT_SETTINGS, logoUrl: e.target.value}))} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">نص التذييل (Footer)</label>
+            <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.footerText || ''} onChange={e => setSettings(prev => prev ? ({...prev, footerText: e.target.value}) : ({...DEFAULT_SETTINGS, footerText: e.target.value}))} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Facebook</label>
+              <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.socialLinks.facebook || ''} onChange={e => setSettings(prev => prev ? ({...prev, socialLinks: {...prev.socialLinks, facebook: e.target.value}}) : ({...DEFAULT_SETTINGS, socialLinks: {...DEFAULT_SETTINGS.socialLinks, facebook: e.target.value}}))} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Twitter</label>
+              <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.socialLinks.twitter || ''} onChange={e => setSettings(prev => prev ? ({...prev, socialLinks: {...prev.socialLinks, twitter: e.target.value}}) : ({...DEFAULT_SETTINGS, socialLinks: {...DEFAULT_SETTINGS.socialLinks, twitter: e.target.value}}))} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Instagram</label>
+              <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.socialLinks.instagram || ''} onChange={e => setSettings(prev => prev ? ({...prev, socialLinks: {...prev.socialLinks, instagram: e.target.value}}) : ({...DEFAULT_SETTINGS, socialLinks: {...DEFAULT_SETTINGS.socialLinks, instagram: e.target.value}}))} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Telegram</label>
+              <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.socialLinks.telegram || ''} onChange={e => setSettings(prev => prev ? ({...prev, socialLinks: {...prev.socialLinks, telegram: e.target.value}}) : ({...DEFAULT_SETTINGS, socialLinks: {...DEFAULT_SETTINGS.socialLinks, telegram: e.target.value}}))} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">YouTube</label>
+              <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.socialLinks.youtube || ''} onChange={e => setSettings(prev => prev ? ({...prev, socialLinks: {...prev.socialLinks, youtube: e.target.value}}) : ({...DEFAULT_SETTINGS, socialLinks: {...DEFAULT_SETTINGS.socialLinks, youtube: e.target.value}}))} />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mt-4">
+            <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold">حفظ</button>
+            <button type="button" onClick={() => { if (confirm('هل تريد إعادة إعدادات المنصة إلى الافتراضية؟')) { setSettings(DEFAULT_SETTINGS as any); }} } className="bg-gray-100 px-4 py-2 rounded-xl">استعادة الافتراضي</button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -803,6 +882,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   {activeTab === 'orders' && renderOrders()}
   {activeTab === 'users' && renderUsers()}
   {activeTab === 'payments' && renderPayments()}
+  {activeTab === 'settings' && renderSettings()}
       </div>
 
       {/* Add/Edit Product Modal */}

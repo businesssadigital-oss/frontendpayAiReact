@@ -1,5 +1,5 @@
 import { Product, User, Order, Category, PaymentMethod, CartItem, Review } from '../types';
-import { MOCK_PRODUCTS, MOCK_USERS, DEFAULT_CATEGORIES, DEFAULT_PAYMENT_METHODS, generateFakeCode } from '../constants';
+import { MOCK_PRODUCTS, MOCK_USERS, DEFAULT_CATEGORIES, DEFAULT_PAYMENT_METHODS, generateFakeCode, DEFAULT_SETTINGS } from '../constants';
 
 const API_URL = 'https://backendpay-1.onrender.com/api';
 const STORAGE_KEYS = {
@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   PAYMENT_METHODS: 'matajir_payments',
   REVIEWS: 'matajir_reviews',
   INVENTORY: 'matajir_inventory'
+  ,SETTINGS: 'matajir_settings'
 };
 
 let useBackend = false;
@@ -74,6 +75,7 @@ export const db = {
       if (!getLocal(STORAGE_KEYS.USERS, null)) setLocal(STORAGE_KEYS.USERS, MOCK_USERS);
       if (!getLocal(STORAGE_KEYS.CATEGORIES, null)) setLocal(STORAGE_KEYS.CATEGORIES, DEFAULT_CATEGORIES);
       if (!getLocal(STORAGE_KEYS.PAYMENT_METHODS, null)) setLocal(STORAGE_KEYS.PAYMENT_METHODS, DEFAULT_PAYMENT_METHODS);
+  if (!getLocal(STORAGE_KEYS.SETTINGS, null)) setLocal(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
     }
   },
 
@@ -270,6 +272,30 @@ export const db = {
     setLocal(STORAGE_KEYS.PRODUCTS, products.map(p => 
       p.id === review.productId ? { ...p, rating: Number(avg.toFixed(1)) } : p
     ));
+  },
+
+  // --- Settings ---
+  getSettings: async () => {
+    if (useBackend) {
+      try {
+        return await api('/settings');
+      } catch (err) {
+        console.warn('Failed to fetch settings from backend, falling back to local');
+      }
+    }
+    return getLocal(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS as any);
+  },
+
+  updateSettings: async (settings: any) => {
+    if (useBackend) {
+      try {
+        await api('/settings', { method: 'PUT', body: JSON.stringify(settings) });
+        return;
+      } catch (err) {
+        console.warn('Failed to update settings on backend, saving locally', (err as any).message || String(err));
+      }
+    }
+    setLocal(STORAGE_KEYS.SETTINGS, settings);
   },
 
   // --- Chargily Pay ---

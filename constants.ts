@@ -130,3 +130,17 @@ export const generateFakeCode = (type: string): string => {
   }
   return result;
 };
+
+export const DEFAULT_SETTINGS = {
+  siteName: 'ماتاجر - Matajir',
+  siteDescription: 'منصة عربية لبيع البطاقات الرقمية والاشتراكات',
+  logoUrl: '',
+  footerText: 'جميع الحقوق محفوظة © ماتاجر',
+  socialLinks: {
+    facebook: '',
+    twitter: '',
+    instagram: '',
+    telegram: '',
+    youtube: ''
+  }
+};

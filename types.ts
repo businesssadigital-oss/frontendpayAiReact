@@ -68,3 +68,18 @@ export interface Review {
   comment: string;
   date: string;
 }
+
+// Platform settings shape (site-wide editable values)
+export interface Settings {
+  siteName: string;
+  siteDescription: string;
+  logoUrl?: string;
+  footerText?: string;
+  socialLinks: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    telegram?: string;
+    youtube?: string;
+  };
+}

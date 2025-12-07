@@ -1,13 +1,26 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Facebook, Instagram, Mail, Phone, MapPin, Twitter, ShieldCheck } from 'lucide-react';
-import { ViewState } from '../types';
+import { ViewState, Settings } from '../types';
+import { db } from '../services/db';
 
 interface FooterProps {
   setView: (view: ViewState) => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({ setView }) => {
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    db.getSettings().then(s => { if (mounted) setSettings(s); }).catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  const addr = settings?.contactAddress || 'الرياض، المملكة العربية السعودية\nحي الصحافة، طريق الملك فهد';
+  const phone = settings?.contactPhone || '+966 55 123 4567';
+  const email = settings?.contactEmail || 'support@matajir.com';
+
   return (
     <footer className="bg-[#111827] text-gray-300 pt-16 pb-8 border-t border-gray-800 mt-auto" dir="rtl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -102,19 +115,19 @@ export const Footer: React.FC<FooterProps> = ({ setView }) => {
                 <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center shrink-0 text-indigo-500">
                   <MapPin size={18} />
                 </div>
-                <span className="leading-relaxed">الرياض، المملكة العربية السعودية<br />حي الصحافة، طريق الملك فهد</span>
+                <span className="leading-relaxed" dangerouslySetInnerHTML={{ __html: (addr || '').replace(/\n/g, '<br/>') }} />
               </li>
               <li className="flex items-center gap-4">
                 <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center shrink-0 text-indigo-500">
                   <Phone size={18} />
                 </div>
-                <span dir="ltr" className="font-mono">+966 55 123 4567</span>
+                <span dir="ltr" className="font-mono">{phone}</span>
               </li>
               <li className="flex items-center gap-4">
                 <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center shrink-0 text-indigo-500">
                   <Mail size={18} />
                 </div>
-                <span>support@matajir.com</span>
+                <span>{email}</span>
               </li>
             </ul>
           </div>

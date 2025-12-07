@@ -136,4 +136,8 @@ export const DEFAULT_SETTINGS = {
     telegram: '',
     youtube: ''
   }
+  ,
+  contactAddress: 'الرياض، المملكة العربية السعودية\nحي الصحافة، طريق الملك فهد',
+  contactPhone: '+966 55 123 4567',
+  contactEmail: 'support@matajir.com'
 };

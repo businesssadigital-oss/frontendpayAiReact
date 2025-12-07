@@ -82,4 +82,7 @@ export interface Settings {
     telegram?: string;
     youtube?: string;
   };
+  contactAddress?: string;
+  contactPhone?: string;
+  contactEmail?: string;
 }

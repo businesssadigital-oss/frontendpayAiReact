@@ -34,25 +34,48 @@ const STORAGE_KEYS = {
 let useBackend = false;
 
 // Helper for API calls
-const api = async <T>(endpoint: string, options?: RequestInit): Promise<T> => {
+const api = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   try {
     // Ensure endpoint starts with a single '/'
     const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = `${API_URL}${ep}`;
+
+    // Merge headers and include Authorization if token exists
+    const headers: Record<string, string> = {};
+    // If caller provided headers, copy them
+    if (options.headers) {
+      try {
+        const h = options.headers as any;
+        if (h instanceof Headers) {
+          h.forEach((v: string, k: string) => { headers[k] = v; });
+        } else {
+          Object.assign(headers, h);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // If body is FormData, do not set Content-Type (browser will set multipart boundary)
+    const bodyIsForm = options.body instanceof FormData;
+    if (!bodyIsForm && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+
+    const token = localStorage.getItem('matajir_token');
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     const response = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
       ...options,
-    });
+      headers,
+    } as RequestInit);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || `API Error ${response.status}: ${response.statusText}`);
     }
     return response.json();
   } catch (error: any) {
-    // Only log errors if we are allegedly connected to the backend.
-    // We explicitly SKIP logging for /health because failing that is a valid flow (Offline Mode).
     if (useBackend && endpoint !== '/health') {
-        console.error(`API Call Failed [${endpoint}]:`, error.message);
+      console.error(`API Call Failed [${endpoint}]:`, error.message || String(error));
     }
     throw error;
   }
@@ -150,7 +173,12 @@ export const db = {
   },
 
   createUser: async (user: User): Promise<User> => {
-    if (useBackend) return api<User>('/auth/register', { method: 'POST', body: JSON.stringify(user) });
+    if (useBackend) {
+      const res: any = await api('/auth/register', { method: 'POST', body: JSON.stringify(user) });
+      // backend returns { user, token }
+      if (res && res.token) localStorage.setItem('matajir_token', res.token);
+      return res.user || res;
+    }
 
     const users = getLocal<User[]>(STORAGE_KEYS.USERS, []);
     if (users.find(u => u.email === user.email)) throw new Error('البريد الإلكتروني مسجل مسبقاً');
@@ -160,7 +188,11 @@ export const db = {
   },
 
   loginUser: async (email: string, pass: string): Promise<User> => {
-    if (useBackend) return api<User>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+    if (useBackend) {
+      const res: any = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
+      if (res && res.token) localStorage.setItem('matajir_token', res.token);
+      return res.user || res;
+    }
 
     const users = getLocal<User[]>(STORAGE_KEYS.USERS, []);
     const user = users.find(u => u.email === email && u.password === pass);
@@ -396,6 +428,46 @@ export const db = {
     }
     setLocal(STORAGE_KEYS.SETTINGS, settings);
     return settings;
+  },
+
+  // Upload logo image (File or data URL). If a File is provided and backend connected, send multipart/form-data.
+  uploadLogo: async (fileOrDataUrl: File | string): Promise<string> => {
+    if (!useBackend) {
+      // Offline: if File, return dataUrl for preview; if string, return it
+      if (typeof fileOrDataUrl === 'string') return fileOrDataUrl;
+      return await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(fileOrDataUrl as File);
+      });
+    }
+
+    // Online / backend connected
+    if (fileOrDataUrl instanceof File) {
+      const form = new FormData();
+      form.append('file', fileOrDataUrl);
+      const token = localStorage.getItem('matajir_token');
+      const res = await fetch(`${API_URL}/upload/logo`, {
+        method: 'POST',
+        body: form,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `Upload failed ${res.status}`);
+      }
+      const json = await res.json();
+      return json.url || '';
+    }
+
+    // Received dataUrl string - send as JSON (backwards compatible)
+    try {
+      const result: any = await api('/upload/logo', { method: 'POST', body: JSON.stringify({ dataUrl: String(fileOrDataUrl) }) });
+      return result.url || String(fileOrDataUrl);
+    } catch (err) {
+      console.warn('Logo upload failed, returning provided dataUrl', (err as any).message || String(err));
+      return String(fileOrDataUrl);
+    }
   },
 
   // --- Chargily Pay ---

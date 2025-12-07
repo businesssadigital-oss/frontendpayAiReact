@@ -189,28 +189,38 @@ export const db = {
       if (item) {
         if (p.stock < item.quantity) throw new Error(`الكمية غير متوفرة للمنتج: ${p.name}`);
         
-        // Generate or fetch codes
+        // Generate or fetch codes --- mark sold codes in inventory (do not lose history)
         const codes: string[] = [];
-        const productCodes = inventory[p.id] || [];
-        
+        const productCodes: any[] = inventory[p.id] || [];
+
         for (let i = 0; i < item.quantity; i++) {
-          if (productCodes.length > 0) {
-            codes.push(productCodes.shift()!);
+          // Find next available code (plain string or object with non-sold status)
+          const idx = productCodes.findIndex(c => (typeof c === 'string') || (c && c.status && c.status !== 'sold'));
+          if (idx !== -1) {
+            const entry = productCodes[idx];
+            const codeVal = typeof entry === 'string' ? entry : entry.code;
+            // Mark as sold in inventory (normalize to object)
+            productCodes[idx] = { code: codeVal, status: 'sold' };
+            codes.push(codeVal);
           } else {
-            codes.push(generateFakeCode(p.category)); // Fallback generator
+            // No available codes in inventory - generate fallback code and record it as sold
+            const gen = generateFakeCode(p.category);
+            codes.push(gen);
+            productCodes.push({ code: gen, status: 'sold' });
           }
         }
-        
-        inventory[p.id] = productCodes; // Update inventory after codes removed
+
+        // Save updated inventory (we keep sold entries, so history exists)
+        inventory[p.id] = productCodes;
         deliveryCodes[p.id] = codes;
-        
-        // Update product: decrease stock and update availableCodes (with type casting)
+
+        // Update product: recompute availableCodes and stock from inventory
         const pAny = p as any;
-        const updatedAvailableCodes = (pAny.availableCodes || []).filter((code: string) => !codes.includes(code));
-        return { 
-          ...p, 
-          stock: p.stock - item.quantity,
-          availableCodes: updatedAvailableCodes
+        const availableCodesArr = (inventory[p.id] || []).filter((c: any) => typeof c === 'string' || (c && c.status && c.status !== 'sold')).map((c: any) => typeof c === 'string' ? c : c.code);
+        return {
+          ...p,
+          stock: availableCodesArr.length,
+          availableCodes: availableCodesArr
         };
       }
       return p;
@@ -265,7 +275,7 @@ export const db = {
   },
 
   // --- Inventory ---
-  getInventory: async (): Promise<Record<string, string[]>> => {
+  getInventory: async (): Promise<Record<string, any[]>> => {
     if (useBackend) {
        // Backend aggregates this from products
        const products = await api<any[]>('/products');
@@ -300,18 +310,29 @@ export const db = {
   // Fetch raw Code documents for a product
   getCodes: async (productId: string) => {
     if (useBackend) return api<any[]>(`/codes?productId=${productId}`);
-    const inv = getLocal<Record<string, string[]>>(STORAGE_KEYS.INVENTORY, {});
-    const list = (inv[productId] || []).map(c => ({ code: c, status: 'available' }));
+    const inv = getLocal<Record<string, any[]>>(STORAGE_KEYS.INVENTORY, {});
+    const raw = inv[productId] || [];
+    // Normalize stored shapes: plain string => available, object => { code, status }
+    const list = raw.map((c: any) => {
+      if (typeof c === 'string') return { code: c, status: 'available' };
+      return { code: c.code, status: c.status || 'available' };
+    });
     return list;
   },
 
   getCodeStats: async (productId: string) => {
     if (useBackend) return api<any>(`/codes/stats/${productId}`);
-    
-    const inv = getLocal<Record<string, string[]>>(STORAGE_KEYS.INVENTORY, {});
-    const available = (inv[productId] || []).length;
-    
-    // Count sold codes from orders
+
+    const inv = getLocal<Record<string, any[]>>(STORAGE_KEYS.INVENTORY, {});
+    const raw = inv[productId] || [];
+
+    // Available codes in inventory (treat plain strings as available)
+    const available = raw.reduce((acc, cur) => {
+      if (typeof cur === 'string') return acc + 1;
+      return acc + ((cur && cur.status && cur.status !== 'sold') ? 1 : 0);
+    }, 0);
+
+    // Count sold codes from orders (covers generated codes not present in inventory)
     const orders = getLocal<Order[]>(STORAGE_KEYS.ORDERS, []);
     let sold = 0;
     for (const order of orders) {
@@ -319,7 +340,7 @@ export const db = {
         sold += (order.deliveryCodes[productId] || []).length;
       }
     }
-    
+
     const total = available + sold;
     return { productId, available, sold, total };
   },

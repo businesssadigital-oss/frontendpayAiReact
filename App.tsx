@@ -30,7 +30,7 @@ const App: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
   // Inventory state (cached for dashboard)
-  const [inventory, setInventory] = useState<Record<string, string[]>>({});
+    const [inventory, setInventory] = useState<Record<string, any[]>>({});
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');

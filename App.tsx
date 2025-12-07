@@ -1019,7 +1019,6 @@ const App: React.FC = () => {
             codeInventoryCounts={Object.fromEntries(
                 Object.entries(inventory).map(([k, v]) => [k, (v as string[]).length])
             )}
-                        currentUser={currentUser}
           />
         ) : view === 'cart' ? (
             renderCart()

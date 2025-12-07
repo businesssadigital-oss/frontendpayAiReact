@@ -1,6 +1,20 @@
 import { Product, User, Order, Category, PaymentMethod, CartItem, Review } from '../types';
 import { MOCK_PRODUCTS, MOCK_USERS, DEFAULT_CATEGORIES, DEFAULT_PAYMENT_METHODS, generateFakeCode, DEFAULT_SETTINGS } from '../constants';
 
+// --- Arabic Date Formatter ---
+export const formatDateArabic = (dateString: string): string => {
+  const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  const arabicDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  
+  const date = new Date(dateString);
+  const day = date.getDate();
+  const month = arabicMonths[date.getMonth()];
+  const year = date.getFullYear();
+  const dayName = arabicDays[date.getDay()];
+  
+  return `${dayName} ${day} ${month} ${year}`;
+};
+
 // Prefer environment-controlled backend URL (supports local dev and prod).
 const RAW_API = (import.meta.env.VITE_API_URL as string) || 'https://backendpay-1.onrender.com';
 // Default API_URL (will be overridden if a local backend is detected)
@@ -187,9 +201,17 @@ export const db = {
           }
         }
         
-        inventory[p.id] = productCodes; // Update inventory
+        inventory[p.id] = productCodes; // Update inventory after codes removed
         deliveryCodes[p.id] = codes;
-        return { ...p, stock: p.stock - item.quantity };
+        
+        // Update product: decrease stock and update availableCodes (with type casting)
+        const pAny = p as any;
+        const updatedAvailableCodes = (pAny.availableCodes || []).filter((code: string) => !codes.includes(code));
+        return { 
+          ...p, 
+          stock: p.stock - item.quantity,
+          availableCodes: updatedAvailableCodes
+        };
       }
       return p;
     });

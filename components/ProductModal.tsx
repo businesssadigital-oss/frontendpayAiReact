@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { X, ShoppingCart, Star, ShieldCheck, Clock, ArrowLeft, Check, MessageSquare, Send, AlertCircle } from 'lucide-react';
 import { Product, Category, Review, User, Order } from '../types';
 import { MOCK_PRODUCTS } from '../constants';
+import { formatDateArabic } from '../services/db';
 
 interface ProductModalProps {
   product: Product | null;
@@ -159,7 +160,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                      <div key={review.id} className="bg-gray-50 p-3 rounded-xl">
                         <div className="flex justify-between items-center mb-1">
                            <span className="font-bold text-sm text-gray-900">{review.userName}</span>
-                           <span className="text-xs text-gray-400">{new Date(review.date).toLocaleDateString('ar-SA')}</span>
+                           <span className="text-xs text-gray-400">{formatDateArabic(review.date)}</span>
                         </div>
                         <div className="flex text-yellow-400 mb-1">
                            {[...Array(5)].map((_, i) => (

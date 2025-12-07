@@ -8,7 +8,7 @@ import { ToastContainer } from './components/Toast';
 import { ProductModal } from './components/ProductModal';
 import { Footer } from './components/Footer';
 import { PayPalPayment } from './components/PayPalPayment';
-import { db } from './services/db';
+import { db, formatDateArabic } from './services/db';
 import { Product, User, CartItem, ViewState, Order, Notification, Category, PaymentMethod, Review } from './types';
 import { Trash2, Plus, Minus, CreditCard, ArrowRight, ShoppingBag, ArrowLeft, Search, Filter, Truck, X, Loader2, Gamepad2, Tv, Music, Smartphone, Gift, ExternalLink } from 'lucide-react';
 
@@ -240,10 +240,11 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('matajir_session_user'); // Clear session
+    localStorage.removeItem('matajir_session_user'); // Clear session only, keep cart
+    // DO NOT clear cart: localStorage.removeItem('matajir_cart');
     setView('home');
-    setCart([]);
-    addNotification('info', 'تم تسجيل الخروج');
+    // DO NOT clear state cart: setCart([]);
+    addNotification('info', 'تم تسجيل الخروج. سلتك محفوظة.');
   };
 
   // --- Cart Handlers ---
@@ -882,7 +883,7 @@ const App: React.FC = () => {
                                     <span className="text-gray-500 ml-2">رقم الطلب:</span>
                                     <span className="font-mono font-bold text-gray-900">{order.id}</span>
                                 </div>
-                                <div className="text-gray-500">{new Date(order.date).toLocaleDateString('ar-SA')}</div>
+                                <div className="text-gray-500">{formatDateArabic(order.date)}</div>
                             </div>
                             <div className="p-4">
                                 {order.items.map(item => (

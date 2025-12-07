@@ -32,6 +32,7 @@ const STORAGE_KEYS = {
 };
 
 let useBackend = false;
+let socket: any = null;
 
 // Helper for API calls
 const api = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
@@ -133,6 +134,29 @@ export const db = {
       if (!getLocal(STORAGE_KEYS.CATEGORIES, null)) setLocal(STORAGE_KEYS.CATEGORIES, DEFAULT_CATEGORIES);
       if (!getLocal(STORAGE_KEYS.PAYMENT_METHODS, null)) setLocal(STORAGE_KEYS.PAYMENT_METHODS, DEFAULT_PAYMENT_METHODS);
   if (!getLocal(STORAGE_KEYS.SETTINGS, null)) setLocal(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+    }
+
+    // If backend detected, establish realtime socket connection to receive change events
+    if (useBackend) {
+      try {
+        const socketUrl = API_URL.replace(/\/api$/,'');
+        // dynamic import to avoid bundling issues when socket.io-client not installed
+        const mod: any = await import('socket.io-client');
+        const io: any = mod.io || mod.default?.io || mod.default || mod;
+        socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+        socket.on('connect', () => {
+          console.log('✅ Realtime socket connected', socket.id);
+        });
+        socket.on('resource:changed', (payload: any) => {
+          try {
+            window.dispatchEvent(new CustomEvent('matajir:resource-changed', { detail: payload }));
+          } catch (e) {
+            console.warn('Failed to dispatch resource change event', e);
+          }
+        });
+      } catch (e: any) {
+        console.warn('Realtime connection failed', e && (e.message || e));
+      }
     }
   },
 

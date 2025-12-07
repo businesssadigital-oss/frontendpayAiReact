@@ -134,22 +134,40 @@ const App: React.FC = () => {
   }, [cart, currentUser?.id]);
 
   const refreshData = async () => {
-      const [p, c, u, o, inv, pm, r] = await Promise.all([
-          db.getProducts(),
-          db.getCategories(),
-          db.getUsers(),
-          db.getOrders(),
-          db.getInventory(),
-          db.getPaymentMethods(),
-          db.getReviews()
-      ]);
-      setProducts(p);
-      setCategories(c);
-      setUsers(u);
-      setOrders(o);
-      setInventory(inv);
-      setPaymentMethods(pm);
-      setReviews(r);
+            // Fetch common data in parallel. Users are admin-only so fetch them separately when currentUser is admin.
+            const [p, c, o, inv, pm, r] = await Promise.all([
+                    db.getProducts(),
+                    db.getCategories(),
+                    db.getOrders(),
+                    db.getInventory(),
+                    db.getPaymentMethods(),
+                    db.getReviews()
+            ]);
+            setProducts(p);
+            setCategories(c);
+            setOrders(o);
+            setInventory(inv);
+            setPaymentMethods(pm);
+            setReviews(r);
+
+            // Only fetch users if the current user is an admin. This prevents accidental unauthenticated calls.
+            if (currentUser && currentUser.role === 'admin') {
+                try {
+                    const u = await db.getUsers();
+                    setUsers(u);
+                } catch (err) {
+                    console.warn('Failed to load users for admin dashboard', err);
+                    setUsers([]);
+                }
+            } else {
+                // Use local fallback users (if any) when not admin
+                const local = localStorage.getItem('matajir_users');
+                try {
+                    setUsers(local ? JSON.parse(local) : []);
+                } catch (e) {
+                    setUsers([]);
+                }
+            }
 
       // Set initial payment method if not set
       if (!selectedPaymentMethodId) {

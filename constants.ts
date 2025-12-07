@@ -38,14 +38,7 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
 ];
 
 export const MOCK_USERS: User[] = [
-  {
-    id: 'u1',
-    name: 'مدير النظام',
-    email: 'admin@matajir.com',
-    password: '123',
-    role: 'admin',
-    balance: 1000
-  },
+  // Admin demo user removed
   {
     id: 'u2',
     name: 'أحمد محمد',

@@ -168,8 +168,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (codesList.length > 0) {
       db.addCodes(selectedProductId, codesList)
         .then((res: any) => {
-          const count = (res && res.count) || codesList.length;
-          alert(`تم إضافة ${count} كود بنجاح`);
+          const addedCount = (res && res.count) || codesList.length;
+          const duplicateCount = (res && res.duplicates) || 0;
+          
+          // Build success message
+          let message = `تم إضافة ${addedCount} كود بنجاح`;
+          if (duplicateCount > 0) {
+            message += ` (تم تخطي ${duplicateCount} كود مكرر)`;
+          }
+          alert(message);
+          
           setRawCodes('');
           setSelectedProductId('');
           // Refresh stats

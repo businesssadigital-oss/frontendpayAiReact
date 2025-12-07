@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { db } from '../services/db';
 import { AlertCircle, CheckCircle, Loader } from 'lucide-react';
 
 interface ChargilyPaymentProps {
@@ -46,32 +47,13 @@ export const ChargilyPayment: React.FC<ChargilyPaymentProps> = ({ amount, onSucc
     try {
       const currentUrl = window.location.origin;
       
-      // Call backend to create Chargily checkout session
-      const response = await fetch('https://backendpay-1.onrender.com/api/chargily/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount,
-          success_url: `${currentUrl}/?payment_status=success`,
-          failure_url: `${currentUrl}/?payment_status=failed`
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.checkout_url) {
-        setCheckoutUrl(data.checkout_url);
+      // Use frontend db service which handles backend URL normalization and offline mode
+      const checkoutUrl = await db.createChargilySession(amount);
+      if (checkoutUrl) {
+        setCheckoutUrl(checkoutUrl);
         setStatusMessage('إعادة التوجيه إلى صفحة الدفع الآمنة...');
-        
-        // Redirect to Chargily payment page
         setTimeout(() => {
-          window.location.href = data.checkout_url;
+          window.location.href = checkoutUrl;
         }, 1000);
       } else {
         throw new Error('لم يتم الحصول على رابط الدفع');

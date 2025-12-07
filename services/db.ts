@@ -307,9 +307,21 @@ export const db = {
 
   getCodeStats: async (productId: string) => {
     if (useBackend) return api<any>(`/codes/stats/${productId}`);
+    
     const inv = getLocal<Record<string, string[]>>(STORAGE_KEYS.INVENTORY, {});
     const available = (inv[productId] || []).length;
-    return { productId, available, sold: 0, total: available };
+    
+    // Count sold codes from orders
+    const orders = getLocal<Order[]>(STORAGE_KEYS.ORDERS, []);
+    let sold = 0;
+    for (const order of orders) {
+      if (order.deliveryCodes && order.deliveryCodes[productId]) {
+        sold += (order.deliveryCodes[productId] || []).length;
+      }
+    }
+    
+    const total = available + sold;
+    return { productId, available, sold, total };
   },
 
   // --- Reviews ---

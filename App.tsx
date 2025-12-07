@@ -68,19 +68,30 @@ const App: React.FC = () => {
             const storedUser = localStorage.getItem('matajir_session_user');
             if (storedUser) {
                 try {
-                    setCurrentUser(JSON.parse(storedUser));
+                    const user = JSON.parse(storedUser);
+                    setCurrentUser(user);
+                    
+                    // Session Persistence: Restore User-Specific Cart
+                    const savedCart = localStorage.getItem(`matajir_cart_${user.id}`);
+                    if (savedCart) {
+                        try {
+                            setCart(JSON.parse(savedCart));
+                        } catch (e) {
+                            localStorage.removeItem(`matajir_cart_${user.id}`);
+                        }
+                    }
                 } catch (e) {
                     localStorage.removeItem('matajir_session_user');
                 }
-            }
-
-            // Session Persistence: Restore Cart
-            const savedCart = localStorage.getItem('matajir_cart');
-            if (savedCart) {
-                try {
-                    setCart(JSON.parse(savedCart));
-                } catch (e) {
-                    localStorage.removeItem('matajir_cart');
+            } else {
+                // No user logged in - try to load guest cart
+                const guestCart = localStorage.getItem('matajir_cart_guest');
+                if (guestCart) {
+                    try {
+                        setCart(JSON.parse(guestCart));
+                    } catch (e) {
+                        localStorage.removeItem('matajir_cart_guest');
+                    }
                 }
             }
 
@@ -111,10 +122,16 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
-  // Update Cart Storage whenever it changes
+  // Update Cart Storage whenever it changes (per-user storage)
   useEffect(() => {
-      localStorage.setItem('matajir_cart', JSON.stringify(cart));
-  }, [cart]);
+      if (currentUser) {
+          // Save cart for logged-in user
+          localStorage.setItem(`matajir_cart_${currentUser.id}`, JSON.stringify(cart));
+      } else if (cart.length > 0) {
+          // Save guest cart temporarily (will be cleared on logout)
+          localStorage.setItem('matajir_cart_guest', JSON.stringify(cart));
+      }
+  }, [cart, currentUser?.id]);
 
   const refreshData = async () => {
       const [p, c, u, o, inv, pm, r] = await Promise.all([
@@ -166,7 +183,9 @@ const App: React.FC = () => {
               const newOrder = await db.createOrder(storedUserId, cartItems, total, 'Chargily Pay');
               setOrders(prev => [...prev, newOrder]);
               setCart([]);
-              localStorage.removeItem('matajir_cart'); // Clear persistent cart
+              // Clear user-specific cart
+              localStorage.removeItem(`matajir_cart_${storedUserId}`);
+              localStorage.removeItem('matajir_cart_guest');
               localStorage.removeItem('pending_cart');
               localStorage.removeItem('pending_user_id');
               
@@ -209,6 +228,20 @@ const App: React.FC = () => {
          const user = await db.loginUser(email, pass);
          setCurrentUser(user);
          localStorage.setItem('matajir_session_user', JSON.stringify(user)); // Save session
+         
+         // Load user-specific cart
+         const savedCart = localStorage.getItem(`matajir_cart_${user.id}`);
+         if (savedCart) {
+             try {
+                 setCart(JSON.parse(savedCart));
+             } catch (e) {
+                 localStorage.removeItem(`matajir_cart_${user.id}`);
+                 setCart([]);
+             }
+         } else {
+             setCart([]);
+         }
+         
          setIsAuthOpen(false);
          addNotification('success', `مرحباً بك ${user.name}`);
          if (user.role === 'admin') setView('dashboard');
@@ -239,12 +272,16 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    // Clear user-specific cart from localStorage
+    if (currentUser) {
+      localStorage.removeItem(`matajir_cart_${currentUser.id}`);
+    }
+    localStorage.removeItem('matajir_cart_guest'); // Clear guest cart too
     setCurrentUser(null);
-    localStorage.removeItem('matajir_session_user'); // Clear session only, keep cart
-    // DO NOT clear cart: localStorage.removeItem('matajir_cart');
+    localStorage.removeItem('matajir_session_user'); // Clear session
+    setCart([]); // Clear cart state
     setView('home');
-    // DO NOT clear state cart: setCart([]);
-    addNotification('info', 'تم تسجيل الخروج. سلتك محفوظة.');
+    addNotification('info', 'تم تسجيل الخروج بنجاح');
   };
 
   // --- Cart Handlers ---
@@ -341,7 +378,9 @@ const App: React.FC = () => {
           
           setOrders(prev => [...prev, newOrder]);
           setCart([]);
-          localStorage.removeItem('matajir_cart');
+          // Clear user-specific cart
+          localStorage.removeItem(`matajir_cart_${currentUser.id}`);
+          localStorage.removeItem('matajir_cart_guest');
           
           // Refresh products and inventory to reflect stock changes
           const [updatedProducts, updatedInventory] = await Promise.all([
@@ -368,7 +407,9 @@ const App: React.FC = () => {
          const newOrder = await db.createOrder(currentUser.id, cart, cartTotal, 'PayPal');
          setOrders(prev => [...prev, newOrder]);
          setCart([]);
-         localStorage.removeItem('matajir_cart');
+         // Clear user-specific cart
+         localStorage.removeItem(`matajir_cart_${currentUser.id}`);
+         localStorage.removeItem('matajir_cart_guest');
 
          const [updatedProducts, updatedInventory] = await Promise.all([
             db.getProducts(),

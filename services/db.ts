@@ -168,7 +168,15 @@ export const db = {
 
   // --- Users ---
   getUsers: async (): Promise<User[]> => {
-    if (useBackend) return api<User[]>('/users');
+    if (useBackend) {
+      // Only call backend users endpoint when a token is present (admin-only resource).
+      const token = localStorage.getItem('matajir_token');
+      if (!token) {
+        // Fallback to local storage data to avoid 401 responses when no token exists
+        return getLocal(STORAGE_KEYS.USERS, MOCK_USERS);
+      }
+      return api<User[]>('/users');
+    }
     return getLocal(STORAGE_KEYS.USERS, MOCK_USERS);
   },
 

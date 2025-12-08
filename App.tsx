@@ -223,26 +223,36 @@ const App: React.FC = () => {
 
         // Listen for realtime resource change events dispatched by db (via socket.io)
         React.useEffect(() => {
-            const debounceTimer: { id?: number } = {};
-            const handler = async (ev: any) => {
-                const resource = ev?.detail?.resource;
-                console.log('🔔 Resource changed event received:', resource);
-                // Debounce to avoid rapid consecutive refreshes
-                if (debounceTimer.id) window.clearTimeout(debounceTimer.id);
-                debounceTimer.id = window.setTimeout(async () => {
+                const debounceTimer: { id?: number } = {};
+                const handler = async (ev: any) => {
                     try {
-                        // For now, refresh all main data; could be optimized per-resource
-                        await refreshData();
+                        // Read dashboard realtime preference from local cache/settings
+                        const raw = localStorage.getItem('matajir_settings');
+                        const settings = raw ? JSON.parse(raw) : null;
+                        const enabled = settings?.useDashboardRealtime ?? true;
+                        if (!enabled) return; // realtime disabled by settings
                     } catch (e) {
-                        console.warn('Failed to refresh data after resource change', e);
+                        // If parsing fails, fall back to enabling realtime
                     }
-                }, 400);
-            };
 
-            window.addEventListener('matajir:resource-changed', handler as EventListener);
-            return () => {
-                window.removeEventListener('matajir:resource-changed', handler as EventListener);
-            };
+                    const resource = ev?.detail?.resource;
+                    console.log('🔔 Resource changed event received:', resource);
+                    // Debounce to avoid rapid consecutive refreshes
+                    if (debounceTimer.id) window.clearTimeout(debounceTimer.id);
+                    debounceTimer.id = window.setTimeout(async () => {
+                        try {
+                            // For now, refresh all main data; could be optimized per-resource
+                            await refreshData();
+                        } catch (e) {
+                            console.warn('Failed to refresh data after resource change', e);
+                        }
+                    }, 400);
+                };
+
+                window.addEventListener('matajir:resource-changed', handler as EventListener);
+                return () => {
+                    window.removeEventListener('matajir:resource-changed', handler as EventListener);
+                };
         }, [currentUser]);
 
   // --- Helpers ---

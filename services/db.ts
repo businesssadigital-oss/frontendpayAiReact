@@ -140,13 +140,68 @@ export const db = {
     if (useBackend) {
       try {
         const socketUrl = API_URL.replace(/\/api$/,'');
+
+        // If the backend is remote (different hostname than the current page and not localhost),
+        // avoid probing it for a socket.io endpoint. Many hosting providers (or the remote
+        // backend) may not support socket.io and probing causes noisy 404s. Only probe
+        // same-origin or localhost backends.
+        try {
+          const parsed = new URL(socketUrl);
+          const host = parsed.hostname;
+          const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+          const isSameOrigin = host === window.location.hostname;
+          if (!isLocalHost && !isSameOrigin) {
+            console.info('Skipping realtime probe for remote backend:', socketUrl);
+            return;
+          }
+        } catch (e) {
+          // If parsing fails for some reason, continue with probe (best-effort)
+        }
+
+        // Quick probe: check whether the backend exposes a socket.io endpoint
+        // This avoids attempting a websocket handshake that will produce noisy
+        // "WebSocket connection failed" messages in the browser console when
+        // the server does not support socket.io.
+        let probeOk = false;
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1500);
+          const probeResp = await fetch(`${socketUrl}/socket.io/?EIO=4&transport=polling`, { method: 'GET', mode: 'cors', signal: controller.signal as any });
+          clearTimeout(timeoutId);
+          // Only accept successful 2xx responses as a valid socket.io endpoint.
+          probeOk = !!probeResp && probeResp.ok;
+          if (!probeOk) console.info('Socket probe result:', probeResp.status, probeResp.statusText);
+        } catch (probeErr) {
+          // Probe failed (timeout, CORS block, network error) — treat as no realtime support
+          probeOk = false;
+          console.info('Socket probe error (treating as no realtime):', (probeErr as any)?.message || probeErr);
+        }
+
+        if (!probeOk) {
+          console.info('Realtime socket endpoint not available on backend; skipping realtime connection.');
+          return;
+        }
+
         // dynamic import to avoid bundling issues when socket.io-client not installed
         const mod: any = await import('socket.io-client');
         const io: any = mod.io || mod.default?.io || mod.default || mod;
-        socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+  // Use polling transport first to avoid noisy WebSocket handshake failures
+  // on environments where wss:// is blocked or the server doesn't support websockets.
+  socket = io(socketUrl, { transports: ['polling'], autoConnect: true });
+
         socket.on('connect', () => {
           console.log('✅ Realtime socket connected', socket.id);
         });
+
+        socket.on('connect_error', (err: any) => {
+          console.warn('Realtime connect_error', err && (err.message || err));
+          try {
+            socket && socket.close && socket.close();
+          } catch (_e) {
+            // ignore
+          }
+        });
+
         socket.on('resource:changed', (payload: any) => {
           try {
             window.dispatchEvent(new CustomEvent('matajir:resource-changed', { detail: payload }));
@@ -155,7 +210,7 @@ export const db = {
           }
         });
       } catch (e: any) {
-        console.warn('Realtime connection failed', e && (e.message || e));
+        console.warn('Realtime connection setup failed', e && (e.message || e));
       }
     }
   },

@@ -129,6 +129,8 @@ export const DEFAULT_SETTINGS = {
   siteDescription: 'منصة عربية لبيع البطاقات الرقمية والاشتراكات',
   logoUrl: '',
   footerText: 'جميع الحقوق محفوظة © ماتاجر',
+  // Enable realtime dashboard updates by default for experiments
+  useDashboardRealtime: true,
   socialLinks: {
     facebook: '',
     twitter: '',

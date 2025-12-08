@@ -118,7 +118,14 @@ export const db = {
 
   // --- Products ---
   getProducts: async (): Promise<Product[]> => {
-    if (useBackend) return api<Product[]>('/products');
+    if (useBackend) {
+      try {
+        return await api<Product[]>('/products');
+      } catch (error) {
+        console.warn('Failed to fetch products from backend, falling back to localStorage:', error);
+        return getLocal(STORAGE_KEYS.PRODUCTS, MOCK_PRODUCTS);
+      }
+    }
     return getLocal(STORAGE_KEYS.PRODUCTS, MOCK_PRODUCTS);
   },
 
@@ -145,7 +152,15 @@ export const db = {
 
   // --- Users ---
   getUsers: async (): Promise<User[]> => {
-    if (useBackend) return api<User[]>('/users');
+    if (useBackend) {
+      try {
+        return await api<User[]>('/users');
+      } catch (error) {
+        console.warn('Failed to fetch users from backend, falling back to localStorage:', error);
+        // Fall back to localStorage if API fails
+        return getLocal(STORAGE_KEYS.USERS, MOCK_USERS);
+      }
+    }
     return getLocal(STORAGE_KEYS.USERS, MOCK_USERS);
   },
 
@@ -170,7 +185,14 @@ export const db = {
 
   // --- Orders ---
   getOrders: async (): Promise<Order[]> => {
-    if (useBackend) return api<Order[]>('/orders');
+    if (useBackend) {
+      try {
+        return await api<Order[]>('/orders');
+      } catch (error) {
+        console.warn('Failed to fetch orders from backend, falling back to localStorage:', error);
+        return getLocal(STORAGE_KEYS.ORDERS, []);
+      }
+    }
     return getLocal(STORAGE_KEYS.ORDERS, []);
   },
 
@@ -246,7 +268,14 @@ export const db = {
 
   // --- Categories ---
   getCategories: async (): Promise<Category[]> => {
-    if (useBackend) return api<Category[]>('/categories');
+    if (useBackend) {
+      try {
+        return await api<Category[]>('/categories');
+      } catch (error) {
+        console.warn('Failed to fetch categories from backend, falling back to localStorage:', error);
+        return getLocal(STORAGE_KEYS.CATEGORIES, DEFAULT_CATEGORIES);
+      }
+    }
     return getLocal(STORAGE_KEYS.CATEGORIES, DEFAULT_CATEGORIES);
   },
 
@@ -264,7 +293,14 @@ export const db = {
 
   // --- Payment Methods ---
   getPaymentMethods: async (): Promise<PaymentMethod[]> => {
-    if (useBackend) return api<PaymentMethod[]>('/payment-methods');
+    if (useBackend) {
+      try {
+        return await api<PaymentMethod[]>('/payment-methods');
+      } catch (error) {
+        console.warn('Failed to fetch payment methods from backend, falling back to localStorage:', error);
+        return getLocal(STORAGE_KEYS.PAYMENT_METHODS, DEFAULT_PAYMENT_METHODS);
+      }
+    }
     return getLocal(STORAGE_KEYS.PAYMENT_METHODS, DEFAULT_PAYMENT_METHODS);
   },
 
@@ -277,11 +313,16 @@ export const db = {
   // --- Inventory ---
   getInventory: async (): Promise<Record<string, any[]>> => {
     if (useBackend) {
-       // Backend aggregates this from products
-       const products = await api<any[]>('/products');
-       const inv: Record<string, string[]> = {};
-       products.forEach(p => inv[p.id] = p.availableCodes || []);
-       return inv;
+      try {
+        // Backend aggregates this from products
+        const products = await api<any[]>('/products');
+        const inv: Record<string, string[]> = {};
+        products.forEach(p => inv[p.id] = p.availableCodes || []);
+        return inv;
+      } catch (error) {
+        console.warn('Failed to fetch inventory from backend, falling back to localStorage:', error);
+        return getLocal(STORAGE_KEYS.INVENTORY, {});
+      }
     }
     return getLocal(STORAGE_KEYS.INVENTORY, {});
   },
@@ -347,7 +388,14 @@ export const db = {
 
   // --- Reviews ---
   getReviews: async (): Promise<Review[]> => {
-    if (useBackend) return api<Review[]>('/reviews');
+    if (useBackend) {
+      try {
+        return await api<Review[]>('/reviews');
+      } catch (error) {
+        console.warn('Failed to fetch reviews from backend, falling back to localStorage:', error);
+        return getLocal(STORAGE_KEYS.REVIEWS, []);
+      }
+    }
     return getLocal(STORAGE_KEYS.REVIEWS, []);
   },
 

@@ -134,40 +134,22 @@ const App: React.FC = () => {
   }, [cart, currentUser?.id]);
 
   const refreshData = async () => {
-            // Fetch common data in parallel. Users are admin-only so fetch them separately when currentUser is admin.
-            const [p, c, o, inv, pm, r] = await Promise.all([
-                    db.getProducts(),
-                    db.getCategories(),
-                    db.getOrders(),
-                    db.getInventory(),
-                    db.getPaymentMethods(),
-                    db.getReviews()
-            ]);
-            setProducts(p);
-            setCategories(c);
-            setOrders(o);
-            setInventory(inv);
-            setPaymentMethods(pm);
-            setReviews(r);
-
-            // Only fetch users if the current user is an admin. This prevents accidental unauthenticated calls.
-            if (currentUser && currentUser.role === 'admin') {
-                try {
-                    const u = await db.getUsers();
-                    setUsers(u);
-                } catch (err) {
-                    console.warn('Failed to load users for admin dashboard', err);
-                    setUsers([]);
-                }
-            } else {
-                // Use local fallback users (if any) when not admin
-                const local = localStorage.getItem('matajir_users');
-                try {
-                    setUsers(local ? JSON.parse(local) : []);
-                } catch (e) {
-                    setUsers([]);
-                }
-            }
+      const [p, c, u, o, inv, pm, r] = await Promise.all([
+          db.getProducts(),
+          db.getCategories(),
+          db.getUsers(),
+          db.getOrders(),
+          db.getInventory(),
+          db.getPaymentMethods(),
+          db.getReviews()
+      ]);
+      setProducts(p);
+      setCategories(c);
+      setUsers(u);
+      setOrders(o);
+      setInventory(inv);
+      setPaymentMethods(pm);
+      setReviews(r);
 
       // Set initial payment method if not set
       if (!selectedPaymentMethodId) {
@@ -220,30 +202,6 @@ const App: React.FC = () => {
           }
       }
   };
-
-        // Listen for realtime resource change events dispatched by db (via socket.io)
-        React.useEffect(() => {
-            const debounceTimer: { id?: number } = {};
-            const handler = async (ev: any) => {
-                const resource = ev?.detail?.resource;
-                console.log('🔔 Resource changed event received:', resource);
-                // Debounce to avoid rapid consecutive refreshes
-                if (debounceTimer.id) window.clearTimeout(debounceTimer.id);
-                debounceTimer.id = window.setTimeout(async () => {
-                    try {
-                        // For now, refresh all main data; could be optimized per-resource
-                        await refreshData();
-                    } catch (e) {
-                        console.warn('Failed to refresh data after resource change', e);
-                    }
-                }, 400);
-            };
-
-            window.addEventListener('matajir:resource-changed', handler as EventListener);
-            return () => {
-                window.removeEventListener('matajir:resource-changed', handler as EventListener);
-            };
-        }, [currentUser]);
 
   // --- Helpers ---
 

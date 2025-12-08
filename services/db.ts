@@ -32,51 +32,27 @@ const STORAGE_KEYS = {
 };
 
 let useBackend = false;
-let socket: any = null;
 
 // Helper for API calls
-const api = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+const api = async <T>(endpoint: string, options?: RequestInit): Promise<T> => {
   try {
     // Ensure endpoint starts with a single '/'
     const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = `${API_URL}${ep}`;
-
-    // Merge headers and include Authorization if token exists
-    const headers: Record<string, string> = {};
-    // If caller provided headers, copy them
-    if (options.headers) {
-      try {
-        const h = options.headers as any;
-        if (h instanceof Headers) {
-          h.forEach((v: string, k: string) => { headers[k] = v; });
-        } else {
-          Object.assign(headers, h);
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    // If body is FormData, do not set Content-Type (browser will set multipart boundary)
-    const bodyIsForm = options.body instanceof FormData;
-    if (!bodyIsForm && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-
-    const token = localStorage.getItem('matajir_token');
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
     const response = await fetch(url, {
+      headers: { 'Content-Type': 'application/json' },
       ...options,
-      headers,
-    } as RequestInit);
-
+    });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || `API Error ${response.status}: ${response.statusText}`);
     }
     return response.json();
   } catch (error: any) {
+    // Only log errors if we are allegedly connected to the backend.
+    // We explicitly SKIP logging for /health because failing that is a valid flow (Offline Mode).
     if (useBackend && endpoint !== '/health') {
-      console.error(`API Call Failed [${endpoint}]:`, error.message || String(error));
+        console.error(`API Call Failed [${endpoint}]:`, error.message);
     }
     throw error;
   }
@@ -135,84 +111,6 @@ export const db = {
       if (!getLocal(STORAGE_KEYS.PAYMENT_METHODS, null)) setLocal(STORAGE_KEYS.PAYMENT_METHODS, DEFAULT_PAYMENT_METHODS);
   if (!getLocal(STORAGE_KEYS.SETTINGS, null)) setLocal(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
     }
-
-    // If backend detected, establish realtime socket connection to receive change events
-    if (useBackend) {
-      try {
-        const socketUrl = API_URL.replace(/\/api$/,'');
-
-        // If the backend is remote (different hostname than the current page and not localhost),
-        // avoid probing it for a socket.io endpoint. Many hosting providers (or the remote
-        // backend) may not support socket.io and probing causes noisy 404s. Only probe
-        // same-origin or localhost backends.
-        try {
-          const parsed = new URL(socketUrl);
-          const host = parsed.hostname;
-          const isLocalHost = host === 'localhost' || host === '127.0.0.1';
-          const isSameOrigin = host === window.location.hostname;
-          if (!isLocalHost && !isSameOrigin) {
-            console.info('Skipping realtime probe for remote backend:', socketUrl);
-            return;
-          }
-        } catch (e) {
-          // If parsing fails for some reason, continue with probe (best-effort)
-        }
-
-        // Quick probe: check whether the backend exposes a socket.io endpoint
-        // This avoids attempting a websocket handshake that will produce noisy
-        // "WebSocket connection failed" messages in the browser console when
-        // the server does not support socket.io.
-        let probeOk = false;
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 1500);
-          const probeResp = await fetch(`${socketUrl}/socket.io/?EIO=4&transport=polling`, { method: 'GET', mode: 'cors', signal: controller.signal as any });
-          clearTimeout(timeoutId);
-          // Only accept successful 2xx responses as a valid socket.io endpoint.
-          probeOk = !!probeResp && probeResp.ok;
-          if (!probeOk) console.info('Socket probe result:', probeResp.status, probeResp.statusText);
-        } catch (probeErr) {
-          // Probe failed (timeout, CORS block, network error) — treat as no realtime support
-          probeOk = false;
-          console.info('Socket probe error (treating as no realtime):', (probeErr as any)?.message || probeErr);
-        }
-
-        if (!probeOk) {
-          console.info('Realtime socket endpoint not available on backend; skipping realtime connection.');
-          return;
-        }
-
-        // dynamic import to avoid bundling issues when socket.io-client not installed
-        const mod: any = await import('socket.io-client');
-        const io: any = mod.io || mod.default?.io || mod.default || mod;
-  // Use polling transport first to avoid noisy WebSocket handshake failures
-  // on environments where wss:// is blocked or the server doesn't support websockets.
-  socket = io(socketUrl, { transports: ['polling'], autoConnect: true });
-
-        socket.on('connect', () => {
-          console.log('✅ Realtime socket connected', socket.id);
-        });
-
-        socket.on('connect_error', (err: any) => {
-          console.warn('Realtime connect_error', err && (err.message || err));
-          try {
-            socket && socket.close && socket.close();
-          } catch (_e) {
-            // ignore
-          }
-        });
-
-        socket.on('resource:changed', (payload: any) => {
-          try {
-            window.dispatchEvent(new CustomEvent('matajir:resource-changed', { detail: payload }));
-          } catch (e) {
-            console.warn('Failed to dispatch resource change event', e);
-          }
-        });
-      } catch (e: any) {
-        console.warn('Realtime connection setup failed', e && (e.message || e));
-      }
-    }
   },
 
   // Check connection status
@@ -247,25 +145,12 @@ export const db = {
 
   // --- Users ---
   getUsers: async (): Promise<User[]> => {
-    if (useBackend) {
-      // Only call backend users endpoint when a token is present (admin-only resource).
-      const token = localStorage.getItem('matajir_token');
-      if (!token) {
-        // Fallback to local storage data to avoid 401 responses when no token exists
-        return getLocal(STORAGE_KEYS.USERS, MOCK_USERS);
-      }
-      return api<User[]>('/users');
-    }
+    if (useBackend) return api<User[]>('/users');
     return getLocal(STORAGE_KEYS.USERS, MOCK_USERS);
   },
 
   createUser: async (user: User): Promise<User> => {
-    if (useBackend) {
-      const res: any = await api('/auth/register', { method: 'POST', body: JSON.stringify(user) });
-      // backend returns { user, token }
-      if (res && res.token) localStorage.setItem('matajir_token', res.token);
-      return res.user || res;
-    }
+    if (useBackend) return api<User>('/auth/register', { method: 'POST', body: JSON.stringify(user) });
 
     const users = getLocal<User[]>(STORAGE_KEYS.USERS, []);
     if (users.find(u => u.email === user.email)) throw new Error('البريد الإلكتروني مسجل مسبقاً');
@@ -275,11 +160,7 @@ export const db = {
   },
 
   loginUser: async (email: string, pass: string): Promise<User> => {
-    if (useBackend) {
-      const res: any = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
-      if (res && res.token) localStorage.setItem('matajir_token', res.token);
-      return res.user || res;
-    }
+    if (useBackend) return api<User>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
 
     const users = getLocal<User[]>(STORAGE_KEYS.USERS, []);
     const user = users.find(u => u.email === email && u.password === pass);
@@ -515,46 +396,6 @@ export const db = {
     }
     setLocal(STORAGE_KEYS.SETTINGS, settings);
     return settings;
-  },
-
-  // Upload logo image (File or data URL). If a File is provided and backend connected, send multipart/form-data.
-  uploadLogo: async (fileOrDataUrl: File | string): Promise<string> => {
-    if (!useBackend) {
-      // Offline: if File, return dataUrl for preview; if string, return it
-      if (typeof fileOrDataUrl === 'string') return fileOrDataUrl;
-      return await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(fileOrDataUrl as File);
-      });
-    }
-
-    // Online / backend connected
-    if (fileOrDataUrl instanceof File) {
-      const form = new FormData();
-      form.append('file', fileOrDataUrl);
-      const token = localStorage.getItem('matajir_token');
-      const res = await fetch(`${API_URL}/upload/logo`, {
-        method: 'POST',
-        body: form,
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Upload failed ${res.status}`);
-      }
-      const json = await res.json();
-      return json.url || '';
-    }
-
-    // Received dataUrl string - send as JSON (backwards compatible)
-    try {
-      const result: any = await api('/upload/logo', { method: 'POST', body: JSON.stringify({ dataUrl: String(fileOrDataUrl) }) });
-      return result.url || String(fileOrDataUrl);
-    } catch (err) {
-      console.warn('Logo upload failed, returning provided dataUrl', (err as any).message || String(err));
-      return String(fileOrDataUrl);
-    }
   },
 
   // --- Chargily Pay ---

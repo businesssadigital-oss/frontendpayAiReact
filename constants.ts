@@ -38,7 +38,14 @@ export const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
 ];
 
 export const MOCK_USERS: User[] = [
-  // Admin demo user removed
+  {
+    id: 'u1',
+    name: 'مدير النظام',
+    email: 'admin@matajir.com',
+    password: '123',
+    role: 'admin',
+    balance: 1000
+  },
   {
     id: 'u2',
     name: 'أحمد محمد',
@@ -129,8 +136,6 @@ export const DEFAULT_SETTINGS = {
   siteDescription: 'منصة عربية لبيع البطاقات الرقمية والاشتراكات',
   logoUrl: '',
   footerText: 'جميع الحقوق محفوظة © ماتاجر',
-  // Enable realtime dashboard updates by default for experiments
-  useDashboardRealtime: true,
   socialLinks: {
     facebook: '',
     twitter: '',
@@ -138,8 +143,4 @@ export const DEFAULT_SETTINGS = {
     telegram: '',
     youtube: ''
   }
-  ,
-  contactAddress: 'الرياض، المملكة العربية السعودية\nحي الصحافة، طريق الملك فهد',
-  contactPhone: '+966 55 123 4567',
-  contactEmail: 'support@matajir.com'
 };

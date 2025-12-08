@@ -27,7 +27,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
     }
   };
 
-  // demo admin login removed for production
+  const handleDemoAdmin = () => {
+    onLogin('admin@matajir.com', '123');
+  };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -118,7 +120,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLogin, 
               {isLoginView ? 'دخول' : 'تسجيل حساب'}
             </button>
 
-            {/* Demo admin login removed */}
+            {isLoginView && (
+              <button
+                type="button"
+                onClick={handleDemoAdmin}
+                className="w-full bg-purple-50 text-purple-700 border border-purple-100 py-3.5 rounded-xl font-bold hover:bg-purple-100 transition-colors mt-3 flex items-center justify-center gap-2"
+              >
+                <Shield size={20} />
+                دخول كمدير (تجريبي)
+              </button>
+            )}
           </form>
 
           <div className="mt-6 text-center">

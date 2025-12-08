@@ -37,7 +37,6 @@ interface DashboardProps {
   users: User[];
   categories: Category[];
   paymentMethods: PaymentMethod[];
-  currentUser?: User | null;
   onAddProduct: (product: Product) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
@@ -98,7 +97,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [codesModalUnsold, setCodesModalUnsold] = useState<string[]>([]);
   const [codeStats, setCodeStats] = useState<Record<string, { available: number; sold: number; total: number }>>({});
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [logoUploading, setLogoUploading] = useState(false);
 
   // Load platform settings
   React.useEffect(() => {
@@ -544,39 +542,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">شعار الموقع (Logo)</label>
-            <div className="flex items-center gap-4">
-              <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border border-gray-200">
-                {settings?.logoUrl ? (
-                  <img src={settings.logoUrl} alt="logo" className="max-h-24 object-contain" />
-                ) : (
-                  <ImageIcon size={32} className="text-gray-400" />
-                )}
-              </div>
-              <div className="flex-1">
-                <input type="file" accept="image/*" ref={fileInputRef} onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  try {
-                    setLogoUploading(true);
-                    // Upload file directly (multipart) when connected; offline fallback handled inside db.uploadLogo
-                    const uploaded = await db.uploadLogo(file);
-                    setSettings(prev => prev ? ({ ...prev, logoUrl: uploaded }) : ({ ...DEFAULT_SETTINGS, logoUrl: uploaded }));
-                  } catch (err) {
-                    console.error('Logo upload failed', err);
-                    // If upload failed, try to show local preview
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      const dataUrl = reader.result as string;
-                      setSettings(prev => prev ? ({ ...prev, logoUrl: dataUrl }) : ({ ...DEFAULT_SETTINGS, logoUrl: dataUrl }));
-                    };
-                    reader.readAsDataURL(file);
-                  } finally { setLogoUploading(false); }
-                }} />
-                {logoUploading && <p className="text-xs text-gray-500 mt-2">جارٍ رفع الشعار...</p>}
-                <p className="text-xs text-gray-400 mt-2">يمكنك رفع صورة الشعار وسيتم حفظها على الخادم.</p>
-              </div>
-            </div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">رابط الشعار (Logo URL)</label>
+            <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.logoUrl || ''} onChange={e => setSettings(prev => prev ? ({...prev, logoUrl: e.target.value}) : ({...DEFAULT_SETTINGS, logoUrl: e.target.value}))} />
           </div>
 
           <div>
@@ -585,18 +552,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">العنوان (Address)</label>
-              <textarea className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 h-20 outline-none" value={settings?.contactAddress || ''} onChange={e => setSettings(prev => prev ? ({...prev, contactAddress: e.target.value}) : ({...DEFAULT_SETTINGS, contactAddress: e.target.value}))} />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">رقم الهاتف</label>
-              <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.contactPhone || ''} onChange={e => setSettings(prev => prev ? ({...prev, contactPhone: e.target.value}) : ({...DEFAULT_SETTINGS, contactPhone: e.target.value}))} />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">البريد الإلكتروني</label>
-              <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.contactEmail || ''} onChange={e => setSettings(prev => prev ? ({...prev, contactEmail: e.target.value}) : ({...DEFAULT_SETTINGS, contactEmail: e.target.value}))} />
-            </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Facebook</label>
               <input className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3 outline-none" value={settings?.socialLinks.facebook || ''} onChange={e => setSettings(prev => prev ? ({...prev, socialLinks: {...prev.socialLinks, facebook: e.target.value}}) : ({...DEFAULT_SETTINGS, socialLinks: {...DEFAULT_SETTINGS.socialLinks, facebook: e.target.value}}))} />
